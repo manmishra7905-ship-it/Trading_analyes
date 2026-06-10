@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forex AI Daily Summary Bot</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="stars-overlay"></div>
+  
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="main-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i class="fa-solid fa-chart-line-up"></i>
+        </div>
+        <div class="logo-text">
+          <h1>FX-AI <span>Broadcaster</span></h1>
+          <p>Your 5-10 Min Daily Market Briefing</p>
+        </div>
+      </div>
+      
+      <div class="header-controls">
+        <div class="connection-status" id="serverStatus">
+          <span class="status-indicator active"></span>
+          <span class="status-text">Connected</span>
+        </div>
+        <button class="settings-btn" id="openSettingsBtn" title="API Key Settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Settings</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Settings Sidebar / Drawer -->
+    <div class="settings-drawer" id="settingsDrawer">
+      <div class="drawer-header">
+        <h3><i class="fa-solid fa-key"></i> Credentials Settings</h3>
+        <button class="close-drawer-btn" id="closeSettingsBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="drawer-body">
+        <p class="settings-desc">To get real-time AI analysis instead of demo mode, enter your <strong>Gemini API Key</strong> below. It is stored securely in your browser's local storage.</p>
+        
+        <div class="form-group">
+          <label for="apiKeyInput">Gemini API Key</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSy...">
+            <button class="toggle-password-btn" id="togglePasswordBtn" type="button">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+          <span class="input-hint">Get one for free at <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a></span>
+        </div>
+
+        <button class="save-settings-btn" id="saveSettingsBtn">
+          <i class="fa-solid fa-floppy-disk"></i> Save Key
+        </button>
+        
+        <div class="key-status-box" id="keyStatusBox">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Using stored API Key</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="settings-overlay" id="settingsOverlay"></div>
+
+    <!-- Main Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: AI Audio Summary & Markdown Summary -->
+      <section class="grid-col main-panel">
+        
+        <!-- Podcast/Player Card -->
+        <div class="dashboard-card player-card">
+          <div class="card-glow"></div>
+          
+          <div class="player-header">
+            <div class="badge-row">
+              <span class="badge badge-accent"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Broadcaster</span>
+              <span class="badge badge-duration" id="summaryDurationBadge">7 Mins Briefing</span>
+            </div>
+            <h2>Today's Market Synthesis</h2>
+          </div>
+
+          <!-- Soundwave / Audio Visualizer -->
+          <div class="visualizer-container">
+            <div class="soundwave" id="soundwave">
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+            </div>
+            <div class="visualizer-overlay" id="visualizerOverlay">
+              <i class="fa-solid fa-microphone"></i>
+            </div>
+          </div>
+
+          <!-- Controls panel -->
+          <div class="player-controls">
+            <!-- Language and Duration Selector -->
+            <div class="config-bar">
+              <div class="config-item">
+                <label><i class="fa-solid fa-language"></i> Language</label>
+                <div class="segmented-control" id="langSelector">
+                  <button class="segmented-btn active" data-lang="Hindi">हिंदी (Hindi)</button>
+                  <button class="segmented-btn" data-lang="English">English</button>
+                </div>
+              </div>
+
+              <div class="config-item">
+                <label><i class="fa-solid fa-hourglass-half"></i> Length: <span id="durationVal">7m</span></label>
+                <input type="range" min="5" max="10" value="7" class="slider" id="durationSlider">
+              </div>
+            </div>
+
+            <!-- Audio action bar -->
+            <div class="action-bar">
+              <button class="action-btn secondary-btn" id="speakBtn" disabled>
+                <i class="fa-solid fa-play"></i> <span>Listen</span>
+              </button>
+              <button class="action-btn primary-btn" id="generateBtn">
+                <i class="fa-solid fa-arrows-rotate"></i> <span>Generate Summary</span>
+              </button>
+              <button class="action-btn secondary-btn" id="stopBtn" disabled>
+                <i class="fa-solid fa-stop"></i> <span>Stop</span>
+              </button>
+            </div>
+
+            <!-- Voice selection and playback rates -->
+            <div class="playback-fine-tune" id="ttsControlsPanel">
+              <div class="fine-tune-item">
+                <label for="voiceSelect"><i class="fa-solid fa-volume-high"></i> Voice</label>
+                <select id="voiceSelect" class="styled-select">
+                  <option value="">Loading system voices...</option>
+                </select>
+              </div>
+              <div class="fine-tune-item">
+                <label for="speedSelect"><i class="fa-solid fa-gauge-high"></i> Speed</label>
+                <select id="speedSelect" class="styled-select">
+                  <option value="0.8">0.8x (Slow)</option>
+                  <option value="1.0" selected>1.0x (Normal)</option>
+                  <option value="1.1">1.1x</option>
+                  <option value="1.2">1.2x (Fast)</option>
+                  <option value="1.3">1.3x</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="progress-container" id="playerProgressBar" style="display: none;">
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="playerProgressFill"></div>
+              </div>
+              <div class="time-readouts">
+                <span id="playerStatusText">Speaking...</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Written Bulletin Card -->
+        <div class="dashboard-card bulletin-card">
+          <div class="card-glow"></div>
+          <div class="bulletin-header">
+            <h3><i class="fa-solid fa-newspaper"></i> Written Report</h3>
+            <button class="copy-report-btn" id="copyReportBtn" title="Copy Report to Clipboard" disabled>
+              <i class="fa-solid fa-copy"></i>
+            </button>
+          </div>
+          <div class="bulletin-content" id="bulletinContent">
+            <div class="empty-state">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <p>Click <strong>"Generate Summary"</strong> above to fetch the latest forex rates and market news, and synthesise a daily briefing report.</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Exchange Rates & Market News -->
+      <section class="grid-col side-panel">
+        
+        <!-- Exchange Rates Ticker -->
+        <div class="dashboard-card rates-card">
+          <div class="card-glow"></div>
+          <div class="card-header">
+            <h3><i class="fa-solid fa-coins"></i> Live Exchange Rates</h3>
+            <span class="timestamp-label" id="ratesTimestamp">Updating...</span>
+          </div>
+
+          <div class="rates-grid" id="ratesGrid">
+            <!-- EUR/USD -->
+            <div class="rate-tile" id="rate-EURUSD">
+              <div class="tile-meta">
+                <span class="pair-name">EUR / USD</span>
+                <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.12%</span>
+              </div>
+              <div class="rate-value">1.0845</div>
+            </div>
+            <!-- GBP/USD -->
+            <div class="rate-tile" id="rate-GBPUSD">
+              <div class="tile-meta">
+                <span class="pair-name">GBP / USD</span>
+                <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.08%</span>
+              </div>
+              <div class="rate-value">1.2721</div>
+            </div>
+            <!-- USD/JPY -->
+            <div class="rate-tile" id="rate-USDJPY">
+              <div class="tile-meta">
+                <span class="pair-name">USD / JPY</span>
+                <span class="rate-status status-down"><i class="fa-solid fa-caret-down"></i> -0.19%</span>
+              </div>
+              <div class="rate-value">156.12</div>
+            </div>
+            <!-- AUD/USD -->
+            <div class="rate-tile" id="rate-AUDUSD">
+              <div class="tile-meta">
+                <span class="pair-name">AUD / USD</span>
+                <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.22%</span>
+              </div>
+              <div class="rate-value">0.6654</div>
+            </div>
+            <!-- USD/CAD -->
+            <div class="rate-tile" id="rate-USDCAD">
+              <div class="tile-meta">
+                <span class="pair-name">USD / CAD</span>
+                <span class="rate-status status-down"><i class="fa-solid fa-caret-down"></i> -0.05%</span>
+              </div>
+              <div class="rate-value">1.3620</div>
+            </div>
+            <!-- USD/INR -->
+            <div class="rate-tile" id="rate-USDINR">
+              <div class="tile-meta">
+                <span class="pair-name">USD / INR</span>
+                <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.04%</span>
+              </div>
+              <div class="rate-value">83.52</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="dashboard-card chart-card">
+          <div class="card-glow"></div>
+          <div class="card-header">
+            <h3><i class="fa-solid fa-chart-line"></i> Market Trajectory (24h)</h3>
+          </div>
+          <div class="chart-container">
+            <canvas id="ratesChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Economic news RSS list -->
+        <div class="dashboard-card news-card">
+          <div class="card-glow"></div>
+          <div class="card-header">
+            <h3><i class="fa-solid fa-bullhorn"></i> Global Economic Headlines</h3>
+          </div>
+          <div class="news-list" id="newsList">
+            <div class="news-loader">
+              <div class="spinner"></div>
+              <p>Fetching market news...</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
+      
+    </main>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>FX-AI Broadcaster © 2026. Made with ❤️. Double-check summaries with your financial advisor before trading.</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

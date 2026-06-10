@@ -1,0 +1,26 @@
+{
+  "name": "forex-ai-bot",
+  "version": "1.0.0",
+  "description": "Daily summary bot for forex market using Gemini AI and Text-to-Speech",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "forex",
+    "ai",
+    "bot",
+    "gemini",
+    "tts"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "rss-parser": "^3.13.0"
+  }
+}
