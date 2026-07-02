@@ -34,7 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const apiKeyInput = document.getElementById('apiKeyInput');
   const togglePasswordBtn = document.getElementById('togglePasswordBtn');
   const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  const removeSettingsBtn = document.getElementById('removeSettingsBtn');
   const keyStatusBox = document.getElementById('keyStatusBox');
+  const refreshRatesBtn = document.getElementById('refreshRatesBtn');
 
   // Player Controls
   const soundwave = document.getElementById('soundwave');
@@ -80,6 +82,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Save key
     saveSettingsBtn.addEventListener('click', saveApiKey);
+    
+    // Remove key
+    if (removeSettingsBtn) {
+      removeSettingsBtn.addEventListener('click', removeApiKey);
+    }
+    
+    // Refresh Rates
+    if (refreshRatesBtn) {
+      refreshRatesBtn.addEventListener('click', () => {
+        fetchMarketData(true);
+      });
+    }
     
     // Toggle password visibility
     togglePasswordBtn.addEventListener('click', () => {
@@ -145,8 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (key) {
       apiKeyInput.value = key;
       keyStatusBox.style.display = 'flex';
+      if (removeSettingsBtn) removeSettingsBtn.style.display = 'flex';
     } else {
+      apiKeyInput.value = '';
       keyStatusBox.style.display = 'none';
+      if (removeSettingsBtn) removeSettingsBtn.style.display = 'none';
     }
   }
 
@@ -155,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (key) {
       localStorage.setItem('gemini_api_key', key);
       keyStatusBox.style.display = 'flex';
+      if (removeSettingsBtn) removeSettingsBtn.style.display = 'flex';
       // Visual feedback
       saveSettingsBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Saved!';
       saveSettingsBtn.style.background = 'var(--accent-green)';
@@ -164,16 +182,55 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDrawer();
       }, 1000);
     } else {
-      localStorage.removeItem('gemini_api_key');
-      keyStatusBox.style.display = 'none';
-      alert('API Key cleared. The app will run in Demo Mode.');
-      closeDrawer();
+      removeApiKey();
     }
   }
 
-  // --- Fetch Rates & News Data ---
-  async function fetchMarketData() {
+  function removeApiKey() {
+    localStorage.removeItem('gemini_api_key');
+    apiKeyInput.value = '';
+    keyStatusBox.style.display = 'none';
+    if (removeSettingsBtn) removeSettingsBtn.style.display = 'none';
+    alert('API Key removed. The app will run in Demo Mode.');
+    closeDrawer();
+  }
+
+  // --- Fetch Rates & News Data with Caching ---
+  async function fetchMarketData(forceRefresh = false) {
+    // Check client cache first
+    const cachedData = localStorage.getItem('fx_market_cache');
+    if (!forceRefresh && cachedData) {
+      try {
+        const cache = JSON.parse(cachedData);
+        const now = Date.now();
+        // Client cache duration: 3 minutes
+        if (now - cache.timestamp < 3 * 60 * 1000) {
+          console.log('Using client cached market data');
+          currentRates = cache.rates || {};
+          currentNews = cache.news || [];
+          
+          updateRatesUI(currentRates, cache.serverTime);
+          updateNewsUI(currentNews);
+          renderRatesChart(currentRates);
+          updateServerIndicator('active', 'Connected (Cached)');
+          
+          startLastUpdatedTimer(cache.timestamp);
+          
+          ratesGrid.setAttribute('aria-busy', 'false');
+          newsList.setAttribute('aria-busy', 'false');
+          return;
+        }
+      } catch (e) {
+        console.error('Error reading client cache:', e);
+      }
+    }
+
+    // Set dynamic loading state
+    ratesGrid.setAttribute('aria-busy', 'true');
+    newsList.setAttribute('aria-busy', 'true');
     updateServerIndicator('loading', 'Fetching data...');
+    if (refreshRatesBtn) refreshRatesBtn.classList.add('spinning');
+    
     try {
       const res = await fetch(`${API_BASE}/api/market-data`);
       if (!res.ok) throw new Error('Network error fetching market data');
@@ -185,8 +242,18 @@ document.addEventListener('DOMContentLoaded', () => {
       updateRatesUI(currentRates, data.rates.time);
       updateNewsUI(currentNews);
       renderRatesChart(currentRates);
-      
       updateServerIndicator('active', 'Connected');
+      
+      // Store in client storage
+      const now = Date.now();
+      localStorage.setItem('fx_market_cache', JSON.stringify({
+        timestamp: now,
+        rates: currentRates,
+        news: currentNews,
+        serverTime: data.rates.time
+      }));
+      
+      startLastUpdatedTimer(now);
     } catch (err) {
       console.error(err);
       updateServerIndicator('inactive', 'Connection Error');
@@ -197,6 +264,10 @@ document.addEventListener('DOMContentLoaded', () => {
           <p>Failed to load economic news feeds. Please make sure the backend server is running.</p>
         </div>
       `;
+    } finally {
+      ratesGrid.setAttribute('aria-busy', 'false');
+      newsList.setAttribute('aria-busy', 'false');
+      if (refreshRatesBtn) refreshRatesBtn.classList.remove('spinning');
     }
   }
 
@@ -245,23 +316,97 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tile) return;
     
     const valueEl = tile.querySelector('.rate-value');
-    const oldVal = parseFloat(valueEl.textContent);
-    const newVal = parseFloat(value);
-    
-    valueEl.textContent = value;
-
+    if (valueEl) valueEl.textContent = value;
+ 
     // Simulate minor movement indicator for aesthetic value since rates API changes daily
     const statusEl = tile.querySelector('.rate-status');
     const change = (Math.random() * 0.15).toFixed(2);
     const isUp = Math.random() > 0.45; // slightly positive bias
-
-    if (isUp) {
-      statusEl.className = 'rate-status status-up';
-      statusEl.innerHTML = `<i class="fa-solid fa-caret-up"></i> +${change}%`;
-    } else {
-      statusEl.className = 'rate-status status-down';
-      statusEl.innerHTML = `<i class="fa-solid fa-caret-down"></i> -${change}%`;
+ 
+    if (statusEl) {
+      if (isUp) {
+        statusEl.className = 'rate-status status-up';
+        statusEl.innerHTML = `<i class="fa-solid fa-caret-up"></i> +${change}%`;
+      } else {
+        statusEl.className = 'rate-status status-down';
+        statusEl.innerHTML = `<i class="fa-solid fa-caret-down"></i> -${change}%`;
+      }
     }
+
+    // Draw Sparkline Chart
+    const canvasId = 'sparkline-' + id.split('-')[1];
+    drawSparkline(canvasId, parseFloat(value), isUp);
+  }
+
+  // --- Draw Rate Sparkline inside Canvas ---
+  function drawSparkline(canvasId, baseVal, isUp) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Generate simulated intraday points around rate value
+    const points = [];
+    let currentVal = baseVal;
+    const variance = baseVal * 0.0018; // minor movements
+    for (let i = 0; i < 8; i++) {
+      currentVal += (Math.random() - (isUp ? 0.42 : 0.58)) * variance;
+      points.push(currentVal);
+    }
+
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+
+    ctx.beginPath();
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = isUp ? '#10b981' : '#f43f5e'; // neon green or red
+
+    points.forEach((p, idx) => {
+      const x = (idx / (points.length - 1)) * (w - 4) + 2;
+      const y = h - ((p - min) / range) * (h - 6) - 3;
+      if (idx === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.stroke();
+
+    // Bottom gradient fill
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, isUp ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  // --- Start dynamic timestamp timer ---
+  let lastUpdatedInterval = null;
+  function startLastUpdatedTimer(timestamp) {
+    if (lastUpdatedInterval) clearInterval(lastUpdatedInterval);
+    
+    const updateLabel = () => {
+      const diff = Math.floor((Date.now() - timestamp) / 1000);
+      if (diff < 15) {
+        ratesTimestamp.textContent = 'Last updated: Just now';
+      } else if (diff < 60) {
+        ratesTimestamp.textContent = `Last updated: ${diff}s ago`;
+      } else {
+        const mins = Math.floor(diff / 60);
+        ratesTimestamp.textContent = `Last updated: ${mins} min${mins > 1 ? 's' : ''} ago`;
+      }
+    };
+    
+    updateLabel();
+    lastUpdatedInterval = setInterval(updateLabel, 10000);
   }
 
   // --- Update News UI ---
@@ -406,11 +551,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error(err);
       bulletinContent.innerHTML = `
-        <div class="empty-state">
+        <div class="empty-state error-state">
           <i class="fa-solid fa-circle-exclamation" style="color: var(--accent-red)"></i>
           <p>Failed to generate AI Summary. Please ensure your backend server is online and your Gemini API key is valid.</p>
+          <button class="action-btn secondary-btn" id="retrySummaryBtn" style="margin-top: 1rem; width: auto; font-size: 0.85rem; padding: 0.5rem 1rem;">
+            <i class="fa-solid fa-arrows-rotate"></i> Retry
+          </button>
         </div>
       `;
+      const retryBtn = document.getElementById('retrySummaryBtn');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', generateSummary);
+      }
     } finally {
       isGenerating = false;
       generateBtn.disabled = false;

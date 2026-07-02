@@ -34,7 +34,7 @@
       <div class="header-controls">
         <div class="connection-status" id="serverStatus">
           <span class="status-indicator active"></span>
-          <span class="status-text">Connected</span>
+          <span class="status-text" aria-live="polite">Connected</span>
         </div>
         <button class="settings-btn" id="openSettingsBtn" title="API Key Settings">
           <i class="fa-solid fa-sliders"></i>
@@ -52,6 +52,11 @@
       <div class="drawer-body">
         <p class="settings-desc">To get real-time AI analysis instead of demo mode, enter your <strong>Gemini API Key</strong> below. It is stored securely in your browser's local storage.</p>
         
+        <div class="security-warning-box">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span><strong>Security Note:</strong> Local storage is vulnerable to cross-site scripting (XSS). Do not store sensitive keys on shared or public computers.</span>
+        </div>
+
         <div class="form-group">
           <label for="apiKeyInput">Gemini API Key</label>
           <div class="input-with-icon">
@@ -64,9 +69,14 @@
           <span class="input-hint">Get one for free at <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a></span>
         </div>
 
-        <button class="save-settings-btn" id="saveSettingsBtn">
-          <i class="fa-solid fa-floppy-disk"></i> Save Key
-        </button>
+        <div class="settings-actions">
+          <button class="save-settings-btn" id="saveSettingsBtn">
+            <i class="fa-solid fa-floppy-disk"></i> Save Key
+          </button>
+          <button class="remove-settings-btn" id="removeSettingsBtn" style="display: none;">
+            <i class="fa-solid fa-trash-can"></i> Remove Key
+          </button>
+        </div>
         
         <div class="key-status-box" id="keyStatusBox">
           <i class="fa-solid fa-circle-check"></i>
@@ -209,17 +219,25 @@
           <div class="card-glow"></div>
           <div class="card-header">
             <h3><i class="fa-solid fa-coins"></i> Live Exchange Rates</h3>
-            <span class="timestamp-label" id="ratesTimestamp">Updating...</span>
+            <div class="header-right-meta">
+              <span class="timestamp-label" id="ratesTimestamp" aria-live="polite">Updating...</span>
+              <button class="icon-refresh-btn" id="refreshRatesBtn" title="Refresh Rates & News">
+                <i class="fa-solid fa-arrows-rotate"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="rates-grid" id="ratesGrid">
+          <div class="rates-grid" id="ratesGrid" aria-live="polite" aria-busy="true">
             <!-- EUR/USD -->
             <div class="rate-tile" id="rate-EURUSD">
               <div class="tile-meta">
                 <span class="pair-name">EUR / USD</span>
                 <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.12%</span>
               </div>
-              <div class="rate-value">1.0845</div>
+              <div class="tile-body">
+                <div class="rate-value">1.0845</div>
+                <canvas id="sparkline-EURUSD" class="sparkline-canvas" width="80" height="24" aria-label="EUR/USD intraday sparkline"></canvas>
+              </div>
             </div>
             <!-- GBP/USD -->
             <div class="rate-tile" id="rate-GBPUSD">
@@ -227,7 +245,10 @@
                 <span class="pair-name">GBP / USD</span>
                 <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.08%</span>
               </div>
-              <div class="rate-value">1.2721</div>
+              <div class="tile-body">
+                <div class="rate-value">1.2721</div>
+                <canvas id="sparkline-GBPUSD" class="sparkline-canvas" width="80" height="24" aria-label="GBP/USD intraday sparkline"></canvas>
+              </div>
             </div>
             <!-- USD/JPY -->
             <div class="rate-tile" id="rate-USDJPY">
@@ -235,7 +256,10 @@
                 <span class="pair-name">USD / JPY</span>
                 <span class="rate-status status-down"><i class="fa-solid fa-caret-down"></i> -0.19%</span>
               </div>
-              <div class="rate-value">156.12</div>
+              <div class="tile-body">
+                <div class="rate-value">156.12</div>
+                <canvas id="sparkline-USDJPY" class="sparkline-canvas" width="80" height="24" aria-label="USD/JPY intraday sparkline"></canvas>
+              </div>
             </div>
             <!-- AUD/USD -->
             <div class="rate-tile" id="rate-AUDUSD">
@@ -243,7 +267,10 @@
                 <span class="pair-name">AUD / USD</span>
                 <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.22%</span>
               </div>
-              <div class="rate-value">0.6654</div>
+              <div class="tile-body">
+                <div class="rate-value">0.6654</div>
+                <canvas id="sparkline-AUDUSD" class="sparkline-canvas" width="80" height="24" aria-label="AUD/USD intraday sparkline"></canvas>
+              </div>
             </div>
             <!-- USD/CAD -->
             <div class="rate-tile" id="rate-USDCAD">
@@ -251,7 +278,10 @@
                 <span class="pair-name">USD / CAD</span>
                 <span class="rate-status status-down"><i class="fa-solid fa-caret-down"></i> -0.05%</span>
               </div>
-              <div class="rate-value">1.3620</div>
+              <div class="tile-body">
+                <div class="rate-value">1.3620</div>
+                <canvas id="sparkline-USDCAD" class="sparkline-canvas" width="80" height="24" aria-label="USD/CAD intraday sparkline"></canvas>
+              </div>
             </div>
             <!-- USD/INR -->
             <div class="rate-tile" id="rate-USDINR">
@@ -259,7 +289,10 @@
                 <span class="pair-name">USD / INR</span>
                 <span class="rate-status status-up"><i class="fa-solid fa-caret-up"></i> +0.04%</span>
               </div>
-              <div class="rate-value">83.52</div>
+              <div class="tile-body">
+                <div class="rate-value">83.52</div>
+                <canvas id="sparkline-USDINR" class="sparkline-canvas" width="80" height="24" aria-label="USD/INR intraday sparkline"></canvas>
+              </div>
             </div>
           </div>
         </div>
@@ -281,7 +314,7 @@
           <div class="card-header">
             <h3><i class="fa-solid fa-bullhorn"></i> Global Economic Headlines</h3>
           </div>
-          <div class="news-list" id="newsList">
+          <div class="news-list" id="newsList" aria-live="polite" aria-busy="true">
             <div class="news-loader">
               <div class="spinner"></div>
               <p>Fetching market news...</p>
